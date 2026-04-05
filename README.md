@@ -1,9 +1,8 @@
 # AI-Desktop-Voice-Assistant-Using-Python
 """
-Jarvis AI Desktop Voice Assistant — OpenAI Chat Version
+Jarvis AI Desktop Voice Assistant — 
 =========================================================
-This version adds persistent conversation memory using OpenAI GPT
-and saves AI-generated responses to the Openai/ directory.
+
 
 Author: Zoa Ahmed
 Institution: B.P. Poddar Institute of Management & Technology

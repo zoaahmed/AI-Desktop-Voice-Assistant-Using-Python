@@ -1,13 +1,4 @@
-# AI-Desktop-Voice-Assistant-Using-Python
-"""
-Jarvis AI Desktop Voice Assistant — 
-=========================================================
-
-
-Author: Zoa Ahmed
-Institution: B.P. Poddar Institute of Management & Technology
-"""
-
+AI DESKTOP VOICE ASSISTANT 2 MAIN
 import speech_recognition as sr
 import os
 import webbrowser
@@ -16,28 +7,52 @@ import datetime
 import random
 import requests
 import smtplib
+from config import apikey  # Assuming you have this in your config file
 
-try:
-    from config import apikey, gmail_address, gmail_app_password, recipient_email
-except ImportError:
-    apikey             = "YOUR_OPENAI_API_KEY"
-    gmail_address      = "youremail@gmail.com"
-    gmail_app_password = "your-app-password"
-    recipient_email    = "recipient@example.com"
-
-# Persistent conversation string for GPT context
 chatStr = ""
 
+def chat(query):
+    global chatStr
+    print(chatStr)
+    openai.api_key = apikey
+    chatStr += f"Harry: {query}\n Jarvis: "
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=chatStr,
+        temperature=0.7,
+        max_tokens=256,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    say(response["choices"][0]["text"])
+    chatStr += f"{response['choices'][0]['text']}\n"
+    return response["choices"][0]["text"]
 
-# ── Core Utilities ─────────────────────────────────────────────────────────────
+def ai(prompt):
+    openai.api_key = apikey
+    text = f"OpenAI response for Prompt: {prompt} \n *************************\n\n"
 
-def say(text: str) -> None:
-    """Speak text aloud (macOS). For Windows/Linux replace with pyttsx3."""
+    response = openai.Completion.create(
+        model="text-davinci-003",
+        prompt=prompt,
+        temperature=0.7,
+        max_tokens=256,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0
+    )
+    text += response["choices"][0]["text"]
+    if not os.path.exists("Openai"):
+        os.mkdir("Openai")
+
+    with open(f"Openai/{''.join(prompt.split('intelligence')[1:]).strip()}.txt", "w") as f:
+        f.write(text)
+
+def say(text):
     os.system(f'say "{text}"')
 
-
-def takeCommand() -> str:
-    """Listen via microphone and return recognised text."""
+def takeCommand():
     r = sr.Recognizer()
     with sr.Microphone() as source:
         try:
@@ -51,171 +66,103 @@ def takeCommand() -> str:
             print(e)
             return "Some Error Occurred. Sorry from Jarvis"
 
-
-# ── OpenAI Integration ────────────────────────────────────────────────────────
-
-def chat(query: str) -> str:
-    """
-    Send a query to OpenAI GPT and maintain conversation context.
-    Speaks and returns the response.
-    """
-    global chatStr
-    openai.api_key = apikey
-    chatStr += f"Harry: {query}\n Jarvis: "
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=chatStr,
-        temperature=0.7,
-        max_tokens=256,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-    )
-    reply = response["choices"][0]["text"]
-    say(reply)
-    chatStr += f"{reply}\n"
-    return reply
-
-
-def ai(prompt: str) -> None:
-    """
-    Send a standalone prompt to OpenAI GPT and save the result to
-    the Openai/ directory as a text file named after the prompt.
-    """
-    openai.api_key = apikey
-    text = f"OpenAI response for Prompt: {prompt} \n *************************\n\n"
-    response = openai.Completion.create(
-        model="text-davinci-003",
-        prompt=prompt,
-        temperature=0.7,
-        max_tokens=256,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
-    )
-    text += response["choices"][0]["text"]
-
-    os.makedirs("Openai", exist_ok=True)
-    filename = "".join(prompt.split("intelligence")[1:]).strip() or "response"
-    with open(f"Openai/{filename}.txt", "w") as f:
-        f.write(text)
-
-
-# ── Optional API Features ─────────────────────────────────────────────────────
-
-def get_weather(city: str) -> str:
-    """Fetch current weather for a city using OpenWeatherMap."""
-    try:
-        from config import weather_api_key
-    except ImportError:
-        weather_api_key = "YOUR_OPENWEATHERMAP_API_KEY"
-
+def get_weather(city):
+    api_key = "YOUR_OPENWEATHERMAP_API_KEY"
     base_url = "http://api.openweathermap.org/data/2.5/weather"
-    params   = {"q": city, "appid": weather_api_key, "units": "metric"}
+    params = {'q': city, 'appid': api_key}
+
     try:
-        data        = requests.get(base_url, params=params).json()
-        description = data["weather"][0]["description"]
-        temp        = data["main"]["temp"]
-        return f"The weather in {city} is {description} with a temperature of {temp}°C."
-    except Exception:
-        return "Sorry, I couldn't fetch the weather information."
+        response = requests.get(base_url, params=params)
+        data = response.json()
+        weather_description = data['weather'][0]['description']
+        temperature = data['main']['temp']
+        return f"The weather in {city} is {weather_description} with a temperature of {temperature}°C."
+    except Exception as e:
+        return f"Sorry, I couldn't fetch the weather information."
 
-
-def get_news() -> str:
-    """Fetch top headlines using News API."""
-    try:
-        from config import news_api_key
-    except ImportError:
-        news_api_key = "YOUR_NEWS_API_KEY"
-
+def get_news():
+    api_key = "YOUR_NEWS_API_KEY"
     base_url = "https://newsapi.org/v2/top-headlines"
-    params   = {"country": "in", "apiKey": news_api_key}
+    params = {'country': 'your_country_code', 'apiKey': api_key}
+
     try:
-        data      = requests.get(base_url, params=params).json()
-        articles  = data["articles"]
-        headlines = "\n".join(
-            [f"{i + 1}. {a['title']}" for i, a in enumerate(articles[:5])]
-        )
-        return f"Here are the top headlines:\n{headlines}"
-    except Exception:
-        return "Sorry, I couldn't fetch the news."
+        response = requests.get(base_url, params=params)
+        data = response.json()
+        articles = data['articles']
+        news_headlines = "\n".join([f"{i + 1}. {article['title']}" for i, article in enumerate(articles)])
+        return f"Here are the top headlines:\n{news_headlines}"
+    except Exception as e:
+        return f"Sorry, I couldn't fetch the news."
 
-
-def sendEmail(to: str, content: str) -> None:
-    """Send an email via Gmail SMTP."""
-    server = smtplib.SMTP("smtp.gmail.com", 587)
+def sendEmail(to, content):
+    server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
     server.starttls()
-    server.login(gmail_address, gmail_app_password)
-    server.sendmail(gmail_address, to, content)
+    server.login('youremail@gmail.com', 'your-password')
+    server.sendmail('youremail@gmail.com', to, content)
     server.close()
 
-
-# ── Main Loop ──────────────────────────────────────────────────────────────────
-
-if __name__ == "__main__":
-    print("Welcome to Jarvis A.I")
+if __name__ == '__main__':
+    print('Welcome to Jarvis A.I')
     say("Jarvis A.I")
-
-    SITES = [
-        ["youtube",   "https://www.youtube.com"],
-        ["wikipedia", "https://www.wikipedia.com"],
-        ["google",    "https://www.google.com"],
-    ]
-
     while True:
         print("Listening...")
         query = takeCommand()
-
-        for site in SITES:
-            if f"open {site[0]}".lower() in query.lower():
+        sites = [["youtube", "https://www.youtube.com"], ["wikipedia", "https://www.wikipedia.com"],
+                 ["google", "https://www.google.com"]]
+        for site in sites:
+            if f"Open {site[0]}".lower() in query.lower():
                 say(f"Opening {site[0]} sir...")
                 webbrowser.open(site[1])
 
         if "open music" in query:
-            music_path = "/Users/harry/Downloads/downfall-21371.mp3"
-            os.system(f"open {music_path}")
+            musicPath = "/Users/harry/Downloads/downfall-21371.mp3"
+            os.system(f"open {musicPath}")
 
         elif "the time" in query:
             hour = datetime.datetime.now().strftime("%H")
-            mins = datetime.datetime.now().strftime("%M")
-            say(f"Sir time is {hour} bajke {mins} minutes")
+            min = datetime.datetime.now().strftime("%M")
+            say(f"Sir time is {hour} bajke {min} minutes")
 
-        elif "open facetime" in query.lower():
-            os.system("open /System/Applications/FaceTime.app")
+        elif "open facetime".lower() in query.lower():
+            os.system(f"open /System/Applications/FaceTime.app")
 
-        elif "using artificial intelligence" in query.lower():
+        elif "open pass".lower() in query.lower():
+            os.system(f"open /Applications/Passky.app")
+
+        elif "Using artificial intelligence".lower() in query.lower():
             ai(prompt=query)
 
         elif "check weather" in query.lower():
             say("Sure, please specify the city.")
             city = takeCommand().lower()
-            say(get_weather(city))
+            weather_response = get_weather(city)
+            say(weather_response)
 
         elif "check news" in query.lower():
-            say(get_news())
+            news_response = get_news()
+            say(news_response)
 
-        elif "open code" in query:
-            code_path = r"C:\Users\Haris\AppData\Local\Programs\Microsoft VS Code\Code.exe"
-            os.startfile(code_path)
+        elif 'open code' in query:
+            codePath = "C:\\Users\\Haris\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+            os.startfile(codePath)
 
-        elif "email to harry" in query:
+        elif 'email to harry' in query:
             try:
                 say("What should I say?")
                 content = takeCommand()
-                sendEmail("harryyouremail@gmail.com", content)
+                to = "harryyouremail@gmail.com"
+                sendEmail(to, content)
                 say("Email has been sent!")
             except Exception as e:
                 print(e)
-                say("Sorry, I am not able to send this email.")
+                say("Sorry, I am not able to send this email")
 
-        elif "jarvis quit" in query.lower():
-            say("Goodbye!")
+        elif "Jarvis Quit".lower() in query.lower():
             exit()
 
-        elif "reset chat" in query.lower():
+        elif "reset chat".lower() in query.lower():
             chatStr = ""
-            say("Chat history cleared.")
 
         else:
             print("Chatting...")
